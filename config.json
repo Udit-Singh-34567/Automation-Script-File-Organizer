@@ -1,0 +1,36 @@
+{
+    "file_types": {
+        "Documents": [
+            ".pdf",
+            ".docx",
+            ".doc",
+            ".txt",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx"
+        ],
+        "Images": [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".svg"
+        ],
+        "Videos": [
+            ".mp4",
+            ".mkv",
+            ".avi",
+            ".mov",
+            ".wmv"
+        ],
+        "Music": [
+            ".mp3",
+            ".wav",
+            ".flac"
+        ]
+    },
+    "last_folder": "E:/Downloads - Copy",
+    "theme": "light"
+}
