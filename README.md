@@ -23,6 +23,7 @@ A simple yet powerful Python GUI tool to automatically organize your files into 
 
 - Python 3.7+  
 - Built-in `tkinter` (comes with Python standard install)
+- Installed `ttkbootstrap`
 
 ---
 
