@@ -4,10 +4,13 @@ import logging
 from logging.handlers import RotatingFileHandler
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
-from tkinter import ttk
+from ttkbootstrap import Style
+from ttkbootstrap.constants import *
+from ttkbootstrap.widgets import ttk
+from tkinter.scrolledtext import ScrolledText
 import json
 
-# CONFIG & LOGGING 
+# CONFIG & LOGGING
 
 CONFIG_FILE = "config.json"
 
@@ -18,7 +21,6 @@ DEFAULT_FILE_TYPES = {
     "Music": [".mp3", ".wav", ".flac"],
 }
 
-# Load or create config
 if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as f:
         config = json.load(f)
@@ -26,10 +28,9 @@ else:
     config = {
         "file_types": DEFAULT_FILE_TYPES,
         "last_folder": "",
-        "theme": "light"
+        "theme": "flatly"  # default light theme
     }
 
-# Setup logging with rotation
 log_handler = RotatingFileHandler('organizer.log', maxBytes=50000, backupCount=3)
 logging.basicConfig(
     handlers=[log_handler],
@@ -38,6 +39,8 @@ logging.basicConfig(
 )
 
 # ORGANIZER LOGIC
+
+category_counts = {}
 
 def get_category(extension):
     for category, extensions in config["file_types"].items():
@@ -55,6 +58,10 @@ def count_files(target_dir, include_subfolders):
     return total
 
 def organize_files(target_dir, include_subfolders, delete_empty, progress_var, progress_bar):
+    global category_counts
+    category_counts = {cat: 0 for cat in config["file_types"].keys()}
+    category_counts["Others"] = 0
+
     try:
         total_files = count_files(target_dir, include_subfolders)
         processed = 0
@@ -77,6 +84,9 @@ def organize_files(target_dir, include_subfolders, delete_empty, progress_var, p
                     if os.path.abspath(file_path) != os.path.abspath(dest_path):
                         shutil.move(file_path, dest_path)
                         logging.info(f"Moved: {file} --> {category}/")
+                        category_counts[category] += 1
+                        status_text.insert(tk.END, f"Moved: {file} → {category}/\n")
+                        status_text.see(tk.END)
                 except Exception as e:
                     logging.error(f"Error moving file {file_path}: {e}")
 
@@ -91,7 +101,14 @@ def organize_files(target_dir, include_subfolders, delete_empty, progress_var, p
         logging.info("✅ Organizing complete.")
         config["last_folder"] = target_dir
         save_config()
-        messagebox.showinfo("Done", "✅ Files organized successfully!")
+
+        summary = f"✅ Organizing Complete!\n\nTotal files: {processed}\n"
+        for cat, count in category_counts.items():
+            if count > 0:
+                summary += f"{cat}: {count}\n"
+
+        logging.info(summary)
+        messagebox.showinfo("Summary", summary)
 
     except Exception as e:
         logging.error(f"Unhandled error: {e}")
@@ -120,6 +137,7 @@ def start_organizing():
         include_subfolders = subfolder_var.get()
         delete_empty = delete_empty_var.get()
         progress_var.set(0)
+        status_text.delete(1.0, tk.END)  # clear old status
         organize_files(folder_selected, include_subfolders, delete_empty, progress_var, progress_bar)
 
 def add_category():
@@ -156,42 +174,29 @@ def update_category_dropdown():
         category_var.set(list(config["file_types"].keys())[0])
 
 def toggle_theme():
-    config["theme"] = theme_var.get()
+    if theme_var.get():
+        config["theme"] = "superhero"
+    else:
+        config["theme"] = "flatly"
     save_config()
     apply_theme()
 
 def apply_theme():
-    if config["theme"] == "dark":
-        style.theme_use("clam")
-        style.configure("TLabel", background="#2b2b2b", foreground="#ffffff")
-        style.configure("TButton", background="#444444", foreground="#ffffff")
-        style.configure("TCheckbutton", background="#2b2b2b", foreground="#ffffff")
-        style.configure("TCombobox", fieldbackground="#444444", background="#444444", foreground="#ffffff")
-        style.configure("Dark.Horizontal.TProgressbar", troughcolor='#2b2b2b', background='#4CAF50')
-        root.configure(background="#2b2b2b")
-        progress_bar.configure(style="Dark.Horizontal.TProgressbar")
-    else:
-        style.theme_use("clam")
-        style.configure("TLabel", background="#f0f0f0", foreground="#000000")
-        style.configure("TButton", background="#f0f0f0", foreground="#000000")
-        style.configure("TCheckbutton", background="#f0f0f0", foreground="#000000")
-        style.configure("TCombobox", fieldbackground="#ffffff", background="#ffffff", foreground="#000000")
-        style.configure("Light.Horizontal.TProgressbar", troughcolor='#f0f0f0', background='#4CAF50')
-        root.configure(background="#f0f0f0")
-        progress_bar.configure(style="Light.Horizontal.TProgressbar")
+    style.theme_use(config["theme"])
+    theme_var.set(config["theme"] == "superhero")
 
-# GUI SETUP
+# GUI SETUP with ttkbootstrap
 
 root = tk.Tk()
-root.title("📂 File Organizer Pro")
-root.geometry("400x450")
+root.title("📂 File Organizer SuperPro")
+root.geometry("500x600")
 
-style = ttk.Style()
+style = Style(theme=config.get("theme", "flatly"))
 
 label = ttk.Label(root, text="Organize Files by Type", font=("Arial", 16))
 label.pack(pady=10)
 
-subfolder_var = tk.BooleanVar(value=True)
+subfolder_var = tk.BooleanVar(value=False)
 subfolder_checkbox = ttk.Checkbutton(root, text="Include Subfolders", variable=subfolder_var)
 subfolder_checkbox.pack()
 
@@ -199,12 +204,15 @@ delete_empty_var = tk.BooleanVar(value=False)
 delete_empty_checkbox = ttk.Checkbutton(root, text="Delete Empty Folders", variable=delete_empty_var)
 delete_empty_checkbox.pack()
 
-select_button = ttk.Button(root, text="Select Folder and Organize", command=start_organizing)
+select_button = ttk.Button(root, text="Select Folder and Organize", command=start_organizing, bootstyle=SUCCESS)
 select_button.pack(pady=10)
 
 progress_var = tk.IntVar()
-progress_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate", variable=progress_var)
+progress_bar = ttk.Progressbar(root, orient="horizontal", length=400, mode="determinate", variable=progress_var, bootstyle=INFO)
 progress_bar.pack(pady=10)
+
+status_text = ScrolledText(root, height=10, width=55)
+status_text.pack(pady=10)
 
 add_cat_button = ttk.Button(root, text="➕ Add New Category", command=add_category)
 add_cat_button.pack(pady=5)
@@ -216,8 +224,8 @@ category_dropdown.pack(pady=5)
 add_ext_button = ttk.Button(root, text="➕ Add Extension to Selected Category", command=add_extension_to_category)
 add_ext_button.pack(pady=5)
 
-theme_var = tk.StringVar(value=config.get("theme", "light"))
-theme_checkbox = ttk.Checkbutton(root, text="Dark Mode", variable=theme_var, onvalue="dark", offvalue="light", command=toggle_theme)
+theme_var = tk.BooleanVar(value=config.get("theme", "flatly") == "superhero")
+theme_checkbox = ttk.Checkbutton(root, text="Dark Mode", variable=theme_var, command=toggle_theme)
 theme_checkbox.pack(pady=10)
 
 update_category_dropdown()
